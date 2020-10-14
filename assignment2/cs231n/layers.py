@@ -200,7 +200,18 @@ def batchnorm_forward(x, gamma, beta, bn_param):
         # might prove to be helpful.                                          #
         #######################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+        # sample_mean == mu of standard normal distribution
+        sample_mean = np.mean(x, axis=0)
+        # sample_var == sigma_squared of standard normal distribution
+        sample_var = np.var(x, axis=0)
 
+        x_n = (x - sample_mean) / (np.sqrt(sample_var + eps))
+        # scale and shift x with gamma and beta
+        out = gamma * x_n + beta
+        cache = (gamma, x, sample_mean, sample_var, eps, x_n)
+
+        running_mean = momentum * running_mean + (1 - momentum) * sample_mean
+        running_var = momentum * running_var + (1 - momentum) * sample_var
         pass
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
@@ -216,6 +227,8 @@ def batchnorm_forward(x, gamma, beta, bn_param):
         #######################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
+        scale = gamma / (np.sqrt(running_var + eps))
+        out = x * scale + (beta - scale * running_mean)
         pass
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
@@ -258,6 +271,20 @@ def batchnorm_backward(dout, cache):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
+    gamma, x, mu, sigma_squared, eps, x_n = cache
+    N = x.shape[0]
+
+    # gradient of x  https://arxiv.org/abs/1502.03167 page 4, part 3
+    # dloss / dx
+    dx = dout * gamma
+    x_mu = x - mu
+    dsigma_squared = np.sum(x_mu * dx) * 0.5 * (sigma_squared + eps)**(-1.5)
+    sigma_sqrt = (sigma_squared + eps)**(-0.5)
+    dmu = -np.sum(sigma_sqrt * dx) + dsigma_squared * (-2 / N) * np.sum(x - mu)
+    dx = dx * sigma_sqrt + dsigma_squared * (2 / N) * x_mu + dmu / N
+
+    dgamma = np.sum(x_n * dout, axis=0)
+    dbeta = np.sum(dout, axis=0)
     pass
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
