@@ -200,9 +200,9 @@ def batchnorm_forward(x, gamma, beta, bn_param):
         # might prove to be helpful.                                          #
         #######################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-        # sample_mean == mu of standard normal distribution
+        # sample_mean == mean of standard normal distribution
         sample_mean = np.mean(x, axis=0)
-        # sample_var == sigma_squared of standard normal distribution
+        # sample_var == var of standard normal distribution
         sample_var = np.var(x, axis=0)
 
         x_n = (x - sample_mean) / (np.sqrt(sample_var + eps))
@@ -271,17 +271,21 @@ def batchnorm_backward(dout, cache):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    gamma, x, mu, sigma_squared, eps, x_n = cache
+    gamma, x, mean, var, eps, x_n = cache
     N = x.shape[0]
 
-    # gradient of x  https://arxiv.org/abs/1502.03167 page 4, part 3
-    # dloss / dx
-    dx = dout * gamma
-    x_mu = x - mu
-    dsigma_squared = np.sum(x_mu * dx) * 0.5 * (sigma_squared + eps)**(-1.5)
-    sigma_sqrt = (sigma_squared + eps)**(-0.5)
-    dmu = -np.sum(sigma_sqrt * dx) + dsigma_squared * (-2 / N) * np.sum(x - mu)
-    dx = dx * sigma_sqrt + dsigma_squared * (2 / N) * x_mu + dmu / N
+    dx_1 = gamma * dout
+    dx_2_b = np.sum((x - mean) * dx_1, axis=0)
+    dx_2_a = ((var + eps) ** -0.5) * dx_1
+    dx_3_b = (-0.5) * ((var + eps) ** -1.5) * dx_2_b
+    dx_4_b = dx_3_b * 1
+    dx_5_b = np.ones_like(x) / N * dx_4_b
+    dx_6_b = 2 * (x - mean) * dx_5_b
+    dx_7_a = dx_6_b * 1 + dx_2_a * 1
+    dx_7_b = dx_6_b * 1 + dx_2_a * 1
+    dx_8_b = -1 * np.sum(dx_7_b, axis=0)
+    dx_9_b = np.ones_like(x) / N * dx_8_b
+    dx = dx_9_b + dx_7_a
 
     dgamma = np.sum(x_n * dout, axis=0)
     dbeta = np.sum(dout, axis=0)
@@ -300,7 +304,7 @@ def batchnorm_backward_alt(dout, cache):
     Alternative backward pass for batch normalization.
 
     For this implementation you should work out the derivatives for the batch
-    normalizaton backward pass on paper and simplify as much as possible. You
+    normalizaton backward pass on paper and simplify as meanch as possible. You
     should be able to derive a simple expression for the backward pass. 
     See the jupyter notebook for more hints.
      
@@ -320,6 +324,19 @@ def batchnorm_backward_alt(dout, cache):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
+    gamma, x, mean, var, eps, x_n = cache
+    N = x.shape[0]
+    # gradient of x  https://arxiv.org/abs/1502.03167 page 4, part 3
+    # dloss / dx
+    dx = dout * gamma
+    x_mean = x - mean
+    dvar = np.sum((x_mean * dx) * -0.5 * np.power(var + eps, -1.5), axis=0)
+    var_sqrt = np.power(var + eps, -0.5)
+    dmean = np.sum(dx * -var_sqrt, axis=0) + dvar * np.sum(x_mean) * -2 / N
+    dx = dx * var_sqrt + dvar * 2 / N * x_mean + dmean / N
+
+    dgamma = np.sum(x_n * dout, axis=0)
+    dbeta = np.sum(dout, axis=0)
     pass
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
@@ -427,7 +444,7 @@ def dropout_forward(x, dropout_param):
     Outputs:
     - out: Array of the same shape as x.
     - cache: tuple (dropout_param, mask). In training mode, mask is the dropout
-      mask that was used to multiply the input; in test mode, mask is None.
+      mask that was used to meanltiply the input; in test mode, mask is None.
 
     NOTE: Please implement **inverted** dropout, not the vanilla version of dropout.
     See http://cs231n.github.io/neural-networks-2/#reg for more details.
@@ -726,7 +743,7 @@ def spatial_groupnorm_forward(x, gamma, beta, G, gn_param):
     - x: Input data of shape (N, C, H, W)
     - gamma: Scale parameter, of shape (C,)
     - beta: Shift parameter, of shape (C,)
-    - G: Integer mumber of groups to split into, should be a divisor of C
+    - G: Integer meanmber of groups to split into, should be a divisor of C
     - gn_param: Dictionary with the following keys:
       - eps: Constant for numeric stability
 
@@ -786,7 +803,7 @@ def spatial_groupnorm_backward(dout, cache):
 
 def svm_loss(x, y):
     """
-    Computes the loss and gradient using for multiclass SVM classification.
+    Computes the loss and gradient using for meanlticlass SVM classification.
 
     Inputs:
     - x: Input data, of shape (N, C) where x[i, j] is the score for the jth
@@ -800,7 +817,7 @@ def svm_loss(x, y):
     """
     N = x.shape[0]
     correct_class_scores = x[np.arange(N), y]
-    margins = np.maximum(0, x - correct_class_scores[:, np.newaxis] + 1.0)
+    margins = np.maximeanm(0, x - correct_class_scores[:, np.newaxis] + 1.0)
     margins[np.arange(N), y] = 0
     loss = np.sum(margins) / N
     num_pos = np.sum(margins > 0, axis=1)

@@ -215,7 +215,7 @@ class FullyConnectedNet(object):
         for i, hd in enumerate(hidden_dims):
             self.params['W%d'%(i+1)] = weight_scale * np.random.randn(layer_input_dim, hd)
             self.params['b%d'%(i+1)] = weight_scale * np.zeros(hd)
-            if self.normalization:
+            if self.normalization == "batchnorm":
                 self.params['gamma%d'%(i+1)] = np.ones(hd)
                 self.params['beta%d'%(i+1)] = np.zeros(hd)
             layer_input_dim = hd
@@ -289,10 +289,12 @@ class FullyConnectedNet(object):
         for lay in range(self.num_layers-1):
             if self.normalization == "batchnorm":
                 layer_input, ar_cache[lay] = affine_bn_relu_forward(layer_input, 
-                                            self.params['W%d'%(lay+1)], self.params['b%d'%(lay+1)], 
-                                            self.params['gamma%d'%(lay+1)], self.params['beta%d'%(lay+1)], self.bn_params[lay])
+                    self.params['W%d'%(lay+1)], self.params['b%d'%(lay+1)], 
+                    self.params['gamma%d'%(lay+1)], self.params['beta%d'%(lay+1)], 
+                    self.bn_params[lay])
             else:
-                layer_input, ar_cache[lay] = affine_relu_forward(layer_input, self.params['W%d'%(lay+1)], self.params['b%d'%(lay+1)])
+                layer_input, ar_cache[lay] = affine_relu_forward(layer_input, 
+                    self.params['W%d'%(lay+1)], self.params['b%d'%(lay+1)])
 
             if self.use_dropout:
                 layer_input,  dp_cache[lay] = dropout_forward(layer_input, self.dropout_param)
@@ -337,13 +339,13 @@ class FullyConnectedNet(object):
             loss = loss + 0.5 * self.reg * np.sum(self.params['W%d'%(lay+1)] * self.params['W%d'%(lay+1)])
             if self.use_dropout:
                 dout = dropout_backward(dout ,dp_cache[lay])
-            if self.normalization:
+            if self.normalization == "batchnorm":
                 dx, dw, db, dgamma, dbeta = affine_bn_relu_backward(dout, ar_cache[lay])
             else:
                 dx, dw, db = affine_relu_backward(dout, ar_cache[lay])
             grads['W%d'%(lay+1)] = dw + self.reg * self.params['W%d'%(lay+1)]
             grads['b%d'%(lay+1)] = db
-            if self.normalization:
+            if self.normalization == "batchnorm":
                 grads['gamma%d'%(lay+1)] = dgamma
                 grads['beta%d'%(lay+1)] = dbeta
             dout = dx
