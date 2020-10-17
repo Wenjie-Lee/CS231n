@@ -200,6 +200,7 @@ def batchnorm_forward(x, gamma, beta, bn_param):
         # might prove to be helpful.                                          #
         #######################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+        #批归一化是对若干个数据点进行标准归一化，即对若干和横数据进行归一化
         # sample_mean == mean of standard normal distribution
         sample_mean = np.mean(x, axis=0)
         # sample_var == var of standard normal distribution
@@ -383,6 +384,18 @@ def layernorm_forward(x, gamma, beta, ln_param):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
+    #层归一化是对每个特性进行标准归一化，即对列数据进行归一化
+    # sample_mean == mean of standard normal distribution
+    # sample_mean = np.mean(x, axis=0)
+    sample_mean = np.mean(x, axis=1, keepdims=True) # 1,D
+    # sample_var == var of standard normal distribution
+    # sample_var = np.var(x, axis=0)
+    sample_var = np.var(x, axis=1, keepdims=True)   # 1,D
+
+    x_norm = (x - sample_mean) / (np.sqrt(sample_var + eps))
+    # scale and shift x with gamma and beta
+    out = gamma * x_norm + beta
+    cache = (gamma, x, sample_mean, sample_var, eps, x_norm)
     pass
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
@@ -418,6 +431,22 @@ def layernorm_backward(dout, cache):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
+    gamma, x, mean, var, eps, x_norm = cache
+    D = x.shape[1]
+    # gradient of x  https://arxiv.org/abs/1502.03167 page 4, part 3
+    # dloss / dx
+    dx = dout * gamma   # N,D
+    x_mean = x - mean   # N,D
+    var_eps = var + eps # 1,D
+    var_inv = np.power(var_eps, -0.5)
+    # 1,D
+    dvar = -0.5 * np.sum(x_mean * dx * (var_inv / var_eps), axis=1, keepdims=True)
+    # 1,D
+    dmean = -np.sum(dx * var_inv, axis=1, keepdims=True) + dvar * np.sum(x_mean, axis=1, keepdims=True) * -2 / D
+    dx = dx * var_inv + dvar * 2 / D * x_mean + dmean / D
+
+    dgamma = np.sum(x_norm * dout, axis=0)
+    dbeta = np.sum(dout, axis=0)
     pass
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
